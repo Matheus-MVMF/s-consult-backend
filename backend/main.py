@@ -1,11 +1,15 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
+import json # <--- ADICIONADO PARA LER A CHAVE EM STRING
 import pdfplumber
 import google.generativeai as genai
 from dotenv import load_dotenv
+import firebase_admin
+from firebase_admin import credentials, storage
+import tempfile
 
 # 1. Configuração Inicial
 load_dotenv()
@@ -19,117 +23,152 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-api_key = os.getenv("GOOGLE_API_KEY")
+# --- CONFIGURAÇÃO GOOGLE AI (ATUALIZADA) ---
+# Tenta pegar GEMINI_API_KEY ou GOOGLE_API_KEY
+api_key = os.environ.get("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
+
+# --- CONFIGURAÇÃO FIREBASE (ATUALIZADA PARA NUVEM + LOCAL) ---
+if not firebase_admin._apps:
+    try:
+        # 1. Tenta primeiro pela Variável de Ambiente (Caminho 2 - Render)
+        firebase_json = os.environ.get('FIREBASE_CONFIG')
+        
+        if firebase_json:
+            cred_dict = json.loads(firebase_json)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred, {
+                'storageBucket': os.environ.get('FIREBASE_BUCKET', 'teste-6f9b9.firebasestorage.app')
+            })
+            print("✅ Conectado ao Firebase via Variáveis de Ambiente!")
+            
+        # 2. Se não houver variável, tenta pelo arquivo local (Caminho 1 - PC)
+        else:
+            cred = credentials.Certificate("serviceAccountKey.json")
+            firebase_admin.initialize_app(cred, {
+                'storageBucket': 'teste-6f9b9.firebasestorage.app' 
+            })
+            print("✅ Conectado ao Firebase via arquivo local!")
+            
+    except Exception as e:
+        print(f"❌ Erro ao conectar no Firebase: {e}")
+
+try:
+    bucket = storage.bucket()
+except:
+    bucket = None
 
 class ChatRequest(BaseModel):
     message: str 
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES NOVAS (NUVEM) ---
 
-def encontrar_pdfs_lista(termo, raiz):
-    matches = []
-    for root, dirs, files in os.walk(raiz):
-        for file in files:
-            if file.lower().endswith(".pdf") and termo.lower() in file.lower():
-                matches.append(os.path.join(root, file))
+def listar_pdfs_firebase(termo):
+    """Procura arquivos PDF no Firebase Storage"""
+    if not bucket: return []
     
-    if len(matches) == 0:
-        raiz_pai = os.path.dirname(raiz)
-        for root, dirs, files in os.walk(raiz_pai):
-            for file in files:
-                if file.lower().endswith(".pdf") and termo.lower() in file.lower():
-                    matches.append(os.path.join(root, file))
+    blobs = bucket.list_blobs()
+    matches = []
+    termo = termo.lower().strip()
+    
+    for blob in blobs:
+        if blob.name.lower().endswith(".pdf") and termo in blob.name.lower():
+            matches.append(blob.name)
+            
     return list(set(matches))
 
-def ler_pdf(caminho):
+def ler_pdf_firebase(nome_arquivo):
+    """Baixa o PDF da nuvem temporariamente e lê o texto"""
+    if not bucket: return None
+
     try:
+        blob = bucket.blob(nome_arquivo)
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
+            blob.download_to_filename(temp_pdf.name)
+            temp_path = temp_pdf.name
+            
         texto = ""
-        with pdfplumber.open(caminho) as pdf:
+        with pdfplumber.open(temp_path) as pdf:
             for page in pdf.pages:
                 texto += page.extract_text() or ""
+        
+        os.remove(temp_path)
         return texto
-    except:
+    except Exception as e:
+        print(f"Erro ao ler PDF da nuvem: {e}")
         return None
 
 # --- ROTAS DA API ---
 
-# Rota para baixar o PDF
 @app.get("/download")
 async def download_pdf(filename: str):
-    pasta_atual = os.getcwd()
-    # Reutiliza a busca para achar o caminho completo do arquivo pelo nome
-    caminhos = encontrar_pdfs_lista(filename, pasta_atual)
-    
-    if not caminhos:
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-    
-    # Pega o primeiro que encontrar com esse nome exato
-    caminho_final = caminhos[0]
-    return FileResponse(caminho_final, media_type='application/pdf', filename=filename)
+    """Gera um link seguro para baixar o arquivo direto do Google"""
+    try:
+        blob = bucket.blob(filename)
+        url = blob.generate_signed_url(version="v4", expiration=900, method="GET")
+        return RedirectResponse(url)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado no Firebase")
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     termo = request.message.strip()
-    pasta_atual = os.getcwd()
     
-    lista_arquivos = encontrar_pdfs_lista(termo, pasta_atual)
+    lista_arquivos = listar_pdfs_firebase(termo)
     
     if not lista_arquivos:
-        return {"reply": f"⚠️ Não encontrei nenhum arquivo PDF com o termo '{termo}'."}
+        return {"reply": f"⚠️ Não encontrei nenhum arquivo PDF no Banco de Dados (Firebase) com o termo '{termo}'. Verifique se você fez o upload."}
     
-    # Tratamento de duplicidade
     if len(lista_arquivos) > 1:
-        for caminho in lista_arquivos:
-            if os.path.basename(caminho).lower() == termo.lower():
-                lista_arquivos = [caminho]
-                break
+        if termo in lista_arquivos:
+            lista_arquivos = [termo]
         else:
-            nomes_arquivos = [os.path.basename(c) for c in lista_arquivos]
             return {
-                "reply": "🔍 Encontrei mais de um arquivo com esse nome. Qual deles você quer analisar?",
-                "options": nomes_arquivos
+                "reply": "🔍 Encontrei mais de um arquivo na nuvem. Qual deles é o correto?",
+                "options": lista_arquivos
             }
 
-    caminho_pdf = lista_arquivos[0]
-    nome_arquivo_pdf = os.path.basename(caminho_pdf) # Salva o nome para o botão de download
-    texto_pdf = ler_pdf(caminho_pdf)
+    nome_arquivo_pdf = lista_arquivos[0]
+    texto_pdf = ler_pdf_firebase(nome_arquivo_pdf)
     
     if not texto_pdf:
-        return {"reply": "❌ Encontrei o arquivo, mas não consegui ler o texto."}
+        return {"reply": "❌ Encontrei o arquivo no sistema, mas não consegui ler o conteúdo."}
 
     try:
-        model = genai.GenerativeModel("models/gemini-2.5-flash")
+        # Use o modelo gemini-1.5-flash (mais estável para produção)
+        model = genai.GenerativeModel("gemini-2.5-flash")
         
         prompt_sistema = f"""
         Aja como um Engenheiro Rodoviário Sênior. Analise o PDF: {nome_arquivo_pdf}.
         
-        DADOS:
-        {texto_pdf[:70000]}
+        DADOS BRUTOS DO PDF:
+        {texto_pdf[:80000]}
 
-        REGRAS DE LÓGICA:
-        1. **Desgaste vs Restauração:** Tabela de Desgaste vai em "Desgaste". Restauração é apenas se houver reconstrução profunda (se não, é 0).
-        2. **Desgaste é para colocar algum dado somente se tiver a tabela, caso não tenha é 0.
-        3. **Intro:** Comece com "Olá! Como Engenheiro Rodoviário Sênior..." e comente brevemente sobre a identificação da rodovia/trecho.
-        4. **Formatação:** Use Markdown (**, ###, >) para o site.
-        5. **OAEs não tem nada haver com Pórticos.
+        REGRAS RÍGIDAS DE ENGENHARIA:
+        1. **REGRA DE OURO - IMPLANTAÇÃO:** NUNCA coloque itens "Ruins" ou "Inexistentes" na lista "A Implantar".
+           - "A Implantar" APENAS se houver uma tabela específica (ex: "Valetas para executar", "Novos Meios-fios").
+           - Se não houver tabela de obra nova, "A Implantar" deve ser "0" ou "Não identificado".
+        
+        2. **RESTAURAÇÃO:** Só preencha se o PDF citar explicitamente "Restauração" ou "Reconstrução". Se for apenas "Tapa buraco" ou "Desgaste", a Restauração é 0.
+        
+        3. **FORMATAÇÃO:** Use Markdown (**, ###, >).
 
-        --- TEMPLATE OBRIGATÓRIO (Mantenha os espaços em branco) ---
+        --- TEMPLATE OBRIGATÓRIO (Preencha exatamente assim) ---
 
-        [Introdução cordial e técnica]
+        [Breve introdução cordial e técnica sobre o trecho]
 
         Segue o resumo técnico:
 
         ### 📍 RESUMO TÉCNICO LVC
-        🛣️ *Trecho:* {nome_arquivo_pdf.replace('.pdf', '')}
+        + 🛣️ *Trecho:* {nome_arquivo_pdf.replace('.pdf', '')}
 
         - *Extensão:* **[X] km**
         - *Revestimento (Pista):* **[Tipo e KMs]**
         - *Acostamento:* **[Largura/Tipo]**
 
         > 🏗️ *Pórticos:*
-        - [Situação dos pórticos]
+        - [Situação]
 
         ---
         ### 1. PISTA DE ROLAMENTO
@@ -137,13 +176,13 @@ async def chat_endpoint(request: ChatRequest):
         > *Panelas Abertas (PA)*
         - Ocorrências: **[Total]**
         - Área Total: **[X] m²**
-        - Locais Críticos: [Listar]
+        - Locais Críticos: [Listar KMs]
 
 
         > *Rebaixamentos Laterais (RL)*
         - Ocorrências: **[Total]**
         - Área Total: **[X] m²**
-        - Trechos: [Descrição]
+        - Trechos: [Listar: KM X | Lado]
 
 
         > *Erosões*
@@ -155,13 +194,13 @@ async def chat_endpoint(request: ChatRequest):
         > *Áreas para Restauração*
         - Ocorrências: **[Total]**
         - Extensão: **[X] m**
-        - Obs: [Descrição]
+        - KMs: [Listar KMs ou "Não identificado"]
 
 
-        > *Desgaste*
+        > *Desgaste Superficial*
         - Ocorrências: **[Total]**
         - Área Total: **[X] m²**
-        - Trechos: [Descrição]
+        - Trechos: [Listar: KM Inicial ao Final | Lado]
 
         ---
         ### 2. DRENAGEM & OBRAS
@@ -179,24 +218,24 @@ async def chat_endpoint(request: ChatRequest):
         - Obs: [Descrição]
 
 
-        > *Meios-fios e Sarjetas (Existentes)*
+        > *Meios-fios (Existentes)*
         - Total Geral: **[X] m**
-        - Situação: Bom (**[X]m**) | Regular (**[X]m**) | Ruim (**[X]m**)
+        - Estado: Bom (**[X]m**) | Regular (**[X]m**) | Ruim (**[X]m**)
 
         > *Sarjetas (Existentes)*
         - Total Geral: **[X] m**
-        - Situação: Bom (**[X]m**) | Regular (**[X]m**) | Ruim (**[X]m**)
+        - Estado: Bom (**[X]m**) | Regular (**[X]m**) | Ruim (**[X]m**)
 
         > *Meios-fios (A Implantar)*
+        - *Nota: Preencher APENAS se houver tabela de "Novos" ou "A Executar".*
         - Total a fazer: **[X] m**
-        - Lado Esquerdo: [Descrição]
-        - Lado Direito: [Descrição]
+        - Detalhes: [Lados e KMs]
 
 
         > *Sarjetas/Valas (A Implantar)*
+        - *Nota: Preencher APENAS se houver tabela de "Novos" ou "A Executar".*
         - Total a fazer: **[X] m**
-        - Lado Esquerdo: [Descrição]
-        - Lado Direito: [Descrição]
+        - Detalhes: [Lados e KMs]
 
         ---
         ### 3. SINALIZAÇÃO
@@ -206,7 +245,7 @@ async def chat_endpoint(request: ChatRequest):
 
 
         > *Vertical (Placas Existentes)*
-        - Total: ***[Qtd]**
+        - Total: **[Qtd]**
         - Situação: [Descrição]
 
 
@@ -221,7 +260,6 @@ async def chat_endpoint(request: ChatRequest):
         """
         
         resposta = model.generate_content(prompt_sistema)
-        # RETORNA TAMBÉM O NOME DO PDF PARA O BOTÃO DE DOWNLOAD
         return {
             "reply": resposta.text,
             "pdf_name": nome_arquivo_pdf 
