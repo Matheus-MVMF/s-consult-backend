@@ -1,9 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
-import json # <--- ADICIONADO PARA LER A CHAVE EM STRING
+import json
 import pdfplumber
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -23,34 +23,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- CONFIGURAÇÃO GOOGLE AI (ATUALIZADA) ---
-# Tenta pegar GEMINI_API_KEY ou GOOGLE_API_KEY
+# --- CONFIGURAÇÃO GOOGLE AI ---
 api_key = os.environ.get("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
 
-# --- CONFIGURAÇÃO FIREBASE (ATUALIZADA PARA NUVEM + LOCAL) ---
+# --- CONFIGURAÇÃO FIREBASE ---
 if not firebase_admin._apps:
     try:
-        # 1. Tenta primeiro pela Variável de Ambiente (Caminho 2 - Render)
         firebase_json = os.environ.get('FIREBASE_CONFIG')
-        
         if firebase_json:
             cred_dict = json.loads(firebase_json)
             cred = credentials.Certificate(cred_dict)
             firebase_admin.initialize_app(cred, {
                 'storageBucket': os.environ.get('FIREBASE_BUCKET', 'teste-6f9b9.firebasestorage.app')
             })
-            print("✅ Conectado ao Firebase via Variáveis de Ambiente!")
-            
-        # 2. Se não houver variável, tenta pelo arquivo local (Caminho 1 - PC)
+            print("✅ Conectado ao Firebase via Variáveis!")
         else:
             cred = credentials.Certificate("serviceAccountKey.json")
             firebase_admin.initialize_app(cred, {
                 'storageBucket': 'teste-6f9b9.firebasestorage.app' 
             })
-            print("✅ Conectado ao Firebase via arquivo local!")
-            
+            print("✅ Conectado ao Firebase localmente!")
     except Exception as e:
         print(f"❌ Erro ao conectar no Firebase: {e}")
 
@@ -62,48 +56,37 @@ except:
 class ChatRequest(BaseModel):
     message: str 
 
-# --- FUNÇÕES NOVAS (NUVEM) ---
-
 def listar_pdfs_firebase(termo):
-    """Procura arquivos PDF no Firebase Storage"""
     if not bucket: return []
-    
     blobs = bucket.list_blobs()
     matches = []
     termo = termo.lower().strip()
-    
     for blob in blobs:
         if blob.name.lower().endswith(".pdf") and termo in blob.name.lower():
             matches.append(blob.name)
-            
     return list(set(matches))
 
 def ler_pdf_firebase(nome_arquivo):
-    """Baixa o PDF da nuvem temporariamente e lê o texto"""
     if not bucket: return None
-
     try:
         blob = bucket.blob(nome_arquivo)
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
             blob.download_to_filename(temp_pdf.name)
             temp_path = temp_pdf.name
-            
         texto = ""
         with pdfplumber.open(temp_path) as pdf:
             for page in pdf.pages:
                 texto += page.extract_text() or ""
-        
         os.remove(temp_path)
         return texto
     except Exception as e:
-        print(f"Erro ao ler PDF da nuvem: {e}")
         return None
 
-# --- ROTAS DA API ---
-
+# =====================================================================
+# SERVIÇO 1: DOWNLOAD
+# =====================================================================
 @app.get("/download")
 async def download_pdf(filename: str):
-    """Gera um link seguro para baixar o arquivo direto do Google"""
     try:
         blob = bucket.blob(filename)
         url = blob.generate_signed_url(version="v4", expiration=900, method="GET")
@@ -111,23 +94,22 @@ async def download_pdf(filename: str):
     except Exception as e:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado no Firebase")
 
+# =====================================================================
+# SERVIÇO 2: BUSCA NO BANCO DE DADOS (RELATÓRIOS PRONTOS)
+# =====================================================================
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     termo = request.message.strip()
-    
     lista_arquivos = listar_pdfs_firebase(termo)
     
     if not lista_arquivos:
-        return {"reply": f"⚠️ Não encontrei nenhum arquivo PDF no Banco de Dados (Firebase) com o termo '{termo}'. Verifique se você fez o upload."}
+        return {"reply": f"⚠️ Não encontrei nenhum arquivo PDF no Banco de Dados com o termo '{termo}'."}
     
     if len(lista_arquivos) > 1:
         if termo in lista_arquivos:
             lista_arquivos = [termo]
         else:
-            return {
-                "reply": "🔍 Encontrei mais de um arquivo na nuvem. Qual deles é o correto?",
-                "options": lista_arquivos
-            }
+            return {"reply": "🔍 Encontrei mais de um arquivo na nuvem. Qual deles é o correto?", "options": lista_arquivos}
 
     nome_arquivo_pdf = lista_arquivos[0]
     texto_pdf = ler_pdf_firebase(nome_arquivo_pdf)
@@ -136,16 +118,14 @@ async def chat_endpoint(request: ChatRequest):
         return {"reply": "❌ Encontrei o arquivo no sistema, mas não consegui ler o conteúdo."}
 
     try:
-        # Use o modelo gemini-1.5-flash (mais estável para produção)
         model = genai.GenerativeModel("gemini-2.5-flash")
         
         prompt_sistema = f"""
-        Aja como um Engenheiro Rodoviário Sênior. Analise o PDF: {nome_arquivo_pdf}.
-        
-        DADOS BRUTOS DO PDF:
-        {texto_pdf[:80000]}
+Aja como um Engenheiro Rodoviário Sênior. Analise o PDF: {nome_arquivo_pdf}.
+DADOS BRUTOS DO PDF:
+{texto_pdf[:80000]}
 
-        REGRAS RÍGIDAS DE ENGENHARIA:
+ REGRAS RÍGIDAS DE ENGENHARIA:
         1. **REGRA DE OURO - IMPLANTAÇÃO:** NUNCA coloque itens "Ruins" ou "Inexistentes" na lista "A Implantar".
            - "A Implantar" APENAS se houver uma tabela específica (ex: "Valetas para executar", "Novos Meios-fios").
            - Se não houver tabela de obra nova, "A Implantar" deve ser "0" ou "Não identificado".
@@ -156,114 +136,202 @@ async def chat_endpoint(request: ChatRequest):
 
         --- TEMPLATE OBRIGATÓRIO (Preencha exatamente assim) ---
 
-        [Breve introdução cordial e técnica sobre o trecho]
-
-        Segue o resumo técnico:
-
-        ### 📍 RESUMO TÉCNICO LVC
-        + 🛣️ *Trecho:* {nome_arquivo_pdf.replace('.pdf', '')}
-
-        - *Extensão:* **[X] km**
-        - *Revestimento (Pista):* **[Tipo e KMs]**
-        - *Acostamento:* **[Largura/Tipo]**
-
-        > 🏗️ *Pórticos:*
-        - [Situação]
-
-        ---
-        ### 1. PISTA DE ROLAMENTO
-
-        > *Panelas Abertas (PA)*
-        - Ocorrências: **[Total]**
-        - Área Total: **[X] m²**
-        - Locais Críticos: [Listar KMs]
-
-
-        > *Rebaixamentos Laterais (RL)*
-        - Ocorrências: **[Total]**
-        - Área Total: **[X] m²**
-        - Trechos: [Listar: KM X | Lado]
-
-
-        > *Erosões*
-        - Ocorrências: **[Total]**
-        - Volume Total: **[X] m³**
-        - Detalhes: [Descrição]
-
-
-        > *Áreas para Restauração*
-        - Ocorrências: **[Total]**
-        - Extensão: **[X] m**
-        - KMs: [Listar KMs ou "Não identificado"]
-
-
-        > *Desgaste Superficial*
-        - Ocorrências: **[Total]**
-        - Área Total: **[X] m²**
-        - Trechos: [Listar: KM Inicial ao Final | Lado]
-
-        ---
-        ### 2. DRENAGEM & OBRAS
-
-        > *OAEs (Pontes/Viadutos)*
-        - Total: **[X]** | Local: [Descrição]
-
-
-        > *Passagens Molhadas*
-        - Total: **[X]** | Situação: [Descrição]
-
-
-        > *Bueiros*
-        - Total: **[X]** unidades
-        - Obs: [Descrição]
-
-
-        > *Meios-fios (Existentes)*
-        - Total Geral: **[X] m**
-        - Estado: Bom (**[X]m**) | Regular (**[X]m**) | Ruim (**[X]m**)
-
-        > *Sarjetas (Existentes)*
-        - Total Geral: **[X] m**
-        - Estado: Bom (**[X]m**) | Regular (**[X]m**) | Ruim (**[X]m**)
-
-        > *Meios-fios (A Implantar)*
-        - *Nota: Preencher APENAS se houver tabela de "Novos" ou "A Executar".*
-        - Total a fazer: **[X] m**
-        - Detalhes: [Lados e KMs]
-
-
-        > *Sarjetas/Valas (A Implantar)*
-        - *Nota: Preencher APENAS se houver tabela de "Novos" ou "A Executar".*
-        - Total a fazer: **[X] m**
-        - Detalhes: [Lados e KMs]
-
-        ---
-        ### 3. SINALIZAÇÃO
-
-        > *Horizontal (Pintura)*
-        - Situação: **[Descrição]**
-
-
-        > *Vertical (Placas Existentes)*
-        - Total: **[Qtd]**
-        - Situação: [Descrição]
-
-
-        > *A Implantar (Placas)*
-        - Regulamentação: **[Qtd]** ([Obs])
-        - Advertência: **[Qtd]** ([Obs])
-
-        ---
-        ### 4. SERVIÇOS GERAIS
-        - *Roço Lateral:* **[X] ha** ([Obs])
-        - *Conclusão:* [Parecer final técnico]
-        """
+Siga o Template LVC rigorosamente com formatação Markdown. NUNCA use blocos de código (```).
         
+### 📍 RESUMO TÉCNICO LVC
++ 🛣️ *Trecho:* {nome_arquivo_pdf.replace('.pdf', '')}
+- *Extensão:* **[X] km**
+- *Revestimento (Pista):* **[Tipo e KMs]**
+- *Acostamento:* **[Largura/Tipo]**
+
+> 🏗️ *Pórticos:*
+- [Situação]
+
+---
+### 1. PISTA DE ROLAMENTO
+
+> *Panelas Abertas (PA)*
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Locais Críticos: [Listar KMs]
+
+> *Rebaixamentos Laterais (RL)*
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Trechos: [Listar: KM X | Lado]
+
+> *Erosões*
+- Ocorrências: **[Total]**
+- Volume Total: **[X] m³**
+- Trechos: [Listar: KM X | Lado]
+
+> *Áreas para Restauração*
+- Ocorrências: **[Total]**
+- Extensão: **[X] m**
+- KMs: [Listar: KM Inicial ao Final]
+
+> *Desgaste Superficial*
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Trechos: [Listar: KM Inicial ao Final | Lado]
+
+---
+### 2. DRENAGEM E OAEs
+
+> *OAEs (Pontes/Viadutos)*
+- Total: **[X]** | Local: [Descrição]
+
+> *Passagens Molhadas*
+- Total: **[X]** | Situação: [Descrição]
+
+> *Bueiros*
+- Total: **[X]** unidades
+- Obs: [Descrição]
+
+> *Meios-fios (Existentes)*
+- Total Geral: **[X] m**
+- Estado: Bom (**[X]m**) | Regular (**[X]m**) | Ruim (**[X]m**)
+
+> *Sarjetas (Existentes)*
+- Total Geral: **[X] m**
+- Estado: Bom (**[X]m**) | Regular (**[X]m**) | Ruim (**[X]m**)
+
+---
+### 3. SINALIZAÇÃO E SERVIÇOS
+
+> *Vertical (Placas Existentes)*
+- Total: **[Qtd]**
+- Situação: [Descrição]
+
+> *A Implantar (Placas)*
+- Total a Implantar: **[Qtd]**
+- Relação de Placas A Implantar:
+  - KM [X] | Lado [LE/LD] | [Ex: R-7]
+
+---
+### 4. CONSIDERAÇÕES FINAIS
+- *Roço Lateral:* **[X] ha**
+
+- *Conclusão:* [Parecer final]
+"""
         resposta = model.generate_content(prompt_sistema)
-        return {
-            "reply": resposta.text,
-            "pdf_name": nome_arquivo_pdf 
-        }
-        
+        return {"reply": resposta.text, "pdf_name": nome_arquivo_pdf}
     except Exception as e:
         return {"reply": f"Erro na IA: {str(e)}"}
+
+
+# =====================================================================
+# SERVIÇO 3: LER TABELAS (A LÓGICA DO GERAR_RESUMO.PY)
+# =====================================================================
+@app.post("/upload-pdf")
+async def upload_pdf_endpoint(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith('.pdf'):
+        return {"reply": "❌ Por favor, envie um arquivo PDF."}
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+        temp_pdf.write(await file.read())
+        temp_path = temp_pdf.name
+
+    try:
+        # A IA LÊ O PDF INTEIRO (NATIVO DO GEMINI) IGUAL AO GERAR_RESUMO.PY
+        arquivo_pdf = genai.upload_file(temp_path)
+        
+        prompt_sistema = f"""Aja como um Engenheiro Rodoviário Sênior. Analise o inventário em PDF anexado.
+        
+REGRAS RÍGIDAS DE ENGENHARIA E TABELAS:
+1. **ATENÇÃO MÁXIMA A KMs E LADOS:** Leia as tabelas com precisão cirúrgica. NUNCA invente intervalos se a tabela listar KMs pontuais. 
+2. Para Erosão, Rebaixamento, Desgaste e Panelas, você DEVE capturar o KM exato, o LADO (LE, LD, Eixo) e a dimensão/volume de cada linha da tabela.
+3. **SINALIZAÇÃO DETALHADA:** Liste TODAS as placas lidas nas tabelas (tanto existentes quanto a implantar), linha por linha, informando KM, Lado e o Código da Placa.
+4. NUNCA USE BLOCOS DE CÓDIGO (```). ESCREVA O TEXTO DIRETAMENTE.
+
+--- TEMPLATE OBRIGATÓRIO ---
+
+### 📍 RESUMO TÉCNICO LVC
++ 🛣️ *Trecho:* {file.filename.replace('.pdf', '').replace('_', ' ')}
+
+- *Extensão:* **[X] km**
+- *Revestimento (Pista):* **[Tipo e KMs]**
+- *Acostamento:* **[Largura/Tipo]**
+
+> 🏗️ *Pórticos:*
+- [Situação]
+
+---
+### 1. PISTA DE ROLAMENTO
+
+> *Panelas Abertas (PA)*
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Locais Críticos: [Listar KMs]
+
+> *Rebaixamentos Laterais (RL)*
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Relação Detalhada:
+  - KM [X] | Lado: [LE/LD] | Área: [X] m²
+
+> *Erosões*
+- Ocorrências: **[Total]**
+- Volume Total: **[X] m³**
+- Relação Detalhada:
+  - KM [X] | Lado: [LE/LD] | Volume: [X] m³
+
+> *Áreas para Restauração*
+- Ocorrências: **[Total]**
+- Extensão Total: **[X] m**
+- KMs: [Listar: KM Inicial ao Final]
+
+> *Desgaste Superficial*
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Trechos: [Listar: KM Inicial ao Final | Lado]
+
+---
+### 2. DRENAGEM E OAEs
+
+> *OAEs e Bueiros*
+- Pontes/Viadutos: **[X]** | Local: [Descrição]
+- Passagens Molhadas: **[X]**
+- Bueiros: **[X]** unidades | Obs: [Limpeza]
+
+> *Meios-fios e Sarjetas (Existentes)*
+- Total Meios-fios: **[X] m** | Bom (**[X]m**) | Ruim (**[X]m**)
+- Total Sarjetas: **[X] m** | Bom (**[X]m**) | Ruim (**[X]m**)
+
+---
+### 3. SINALIZAÇÃO
+
+> *Horizontal (Pintura)*
+- Situação: **[Descrição]**
+
+> *Vertical (Placas Existentes)*
+- Total Identificado: **[Qtd]**
+- Relação de Placas Existentes:
+  - KM [X] | Lado [LE/LD] | [Ex: R-19]
+
+> *A Implantar (Placas)*
+- Total a Implantar: **[Qtd]**
+- Relação de Placas A Implantar:
+  - KM [X] | Lado [LE/LD] | [Ex: R-7]
+
+---
+### 4. SERVIÇOS GERAIS
+- *Roço Lateral:* **[X] ha**
+
+- *Conclusão:* [Parecer final técnico]
+"""
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        resposta = model.generate_content([prompt_sistema, arquivo_pdf])
+        
+        try:
+            arquivo_pdf.delete()
+        except:
+            pass
+
+        return {"reply": resposta.text, "pdf_name": file.filename}
+
+    except Exception as e:
+        return {"reply": f"❌ Erro na IA ao ler tabelas: {str(e)}"}
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
