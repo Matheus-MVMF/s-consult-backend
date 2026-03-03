@@ -206,7 +206,8 @@ Siga o Template LVC rigorosamente com formatação Markdown. NUNCA use blocos de
 > *A Implantar (Placas)*
 - Total a Implantar: **[Qtd]**
 - Relação de Placas A Implantar:
-  - KM [X] | Lado [LE/LD] | [Ex: R-7]
+  (ATENÇÃO: É OBRIGATÓRIO LISTAR TODAS AS PLACAS SEM EXCEÇÃO. NÃO RESUMA, NÃO OMITA E NÃO USE "ETC". LISTE CADA UMA DAS PLACAS ENCONTRADAS NO PDF, LINHA POR LINHA):
+  - KM [X] | Lado [LE/LD] | [Código da Placa, Ex: R-7]
 
 ---
 ### 4. CONSIDERAÇÕES FINAIS

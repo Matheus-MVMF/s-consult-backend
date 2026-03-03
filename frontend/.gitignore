@@ -1,7 +1,0 @@
-# Ignorar Chaves Secretas
-serviceAccountKey.json
-backend/serviceAccountKey.json
-
-# Ignorar PDFs e Inventarios
-TDS/
-*.pdf
