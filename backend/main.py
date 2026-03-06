@@ -127,7 +127,7 @@ DADOS BRUTOS DO PDF:
 
  REGRAS RÍGIDAS DE ENGENHARIA:
         1. **REGRA DE OURO - IMPLANTAÇÃO:** NUNCA coloque itens "Ruins" ou "Inexistentes" na lista "A Implantar".
-           - "A Implantar" APENAS se houver uma tabela específica (ex: "Valetas para executar", "Novos Meios-fios").
+           - "A Implantar" APENAS se houver uma tabela específica (ex: "Valetas ou sarjetas para executar", "Meios-fios fios para executar").
            - Se não houver tabela de obra nova, "A Implantar" deve ser "0" ou "Não identificado".
         
         2. **RESTAURAÇÃO:** Só preencha se o PDF citar explicitamente "Restauração" ou "Reconstrução". Se for apenas "Tapa buraco" ou "Desgaste", a Restauração é 0.
@@ -196,6 +196,12 @@ Siga o Template LVC rigorosamente com formatação Markdown. NUNCA use blocos de
 - Total Geral: **[X] m**
 - Estado: Bom (**[X]m**) | Regular (**[X]m**) | Ruim (**[X]m**)
 
+> *Meios-fios e Sarjetas (A Implantar)*
+- Total Meios-fios a Implantar: **[X] m**
+- Total Sarjetas a Implantar: **[X] m**
+- Relação Detalhada a Implantar:
+  (ATENÇÃO: É OBRIGATÓRIO LISTAR TODOS OS TRECHOS SEM EXCEÇÃO. NÃO RESUMA E NÃO USE "ETC". LISTE CADA TRECHO ENCONTRADO NO PDF, LINHA POR LINHA):
+  - [Meio-fio ou Sarjeta] | KM [Inicial] ao KM [Final] | Lado [LE/LD/Ambos] | Extensão: [X] m
 ---
 ### 3. SINALIZAÇÃO E SERVIÇOS
 
@@ -298,7 +304,12 @@ REGRAS RÍGIDAS DE ENGENHARIA E TABELAS:
 > *Meios-fios e Sarjetas (Existentes)*
 - Total Meios-fios: **[X] m** | Bom (**[X]m**) | Ruim (**[X]m**)
 - Total Sarjetas: **[X] m** | Bom (**[X]m**) | Ruim (**[X]m**)
-
+> *Meios-fios e Sarjetas (A Implantar)*
+- Total Meios-fios a Implantar: **[X] m**
+- Total Sarjetas a Implantar: **[X] m**
+- Relação Detalhada a Implantar:
+  (ATENÇÃO: É OBRIGATÓRIO LISTAR TODOS OS TRECHOS SEM EXCEÇÃO. NÃO RESUMA E NÃO USE "ETC". LISTE CADA TRECHO ENCONTRADO NO PDF, LINHA POR LINHA):
+  - [Meio-fio ou Sarjeta] | KM [Inicial] ao KM [Final] | Lado [LE/LD/Ambos] | Extensão: [X] m
 ---
 ### 3. SINALIZAÇÃO
 
