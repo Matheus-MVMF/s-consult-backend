@@ -158,12 +158,14 @@ Siga o Template LVC rigorosamente com formatação Markdown. NUNCA use blocos de
 > *Rebaixamentos Laterais (RL)*
 - Ocorrências: **[Total]**
 - Área Total: **[X] m²**
-- Trechos: [Listar: KM X | Lado]
+- Relação Detalhada:
+  - KM [X] | Lado: [LE/LD] | Área: [X] m²
 
 > *Erosões*
 - Ocorrências: **[Total]**
 - Volume Total: **[X] m³**
-- Trechos: [Listar: KM X | Lado]
+- Relação Detalhada:
+  - KM [X] | Lado: [LE/LD] | Volume: [X] m³
 
 > *Áreas para Restauração*
 - Ocorrências: **[Total]**
@@ -185,8 +187,10 @@ Siga o Template LVC rigorosamente com formatação Markdown. NUNCA use blocos de
 - Total: **[X]** | Situação: [Descrição]
 
 > *Bueiros*
-- Total: **[X]** unidades
-- Obs: [Descrição]
+- Total de Bueiros: **[X]**
+- Relação Detalhada de Bueiros:
+  (REGRA ABSOLUTA: É estritamente PROIBIDO resumir os bueiros. Você DEVE ler a tabela "BUEIROS" e listar TODOS eles, um por um, copiando a Localização, Tipo, Condição e Observação):
+  - KM [Localização] | Tipo: [Tipo] | Condição: [Condição] | Obs: [Observação]
 
 > *Meios-fios (Existentes)*
 - Total Geral: **[X] m**
@@ -218,6 +222,16 @@ Siga o Template LVC rigorosamente com formatação Markdown. NUNCA use blocos de
 ---
 ### 4. CONSIDERAÇÕES FINAIS
 - *Roço Lateral:* **[X] ha**
+
+### 5. OBSERVAÇÕES GERAIS (OBS)
+(REGRA ABSOLUTA: Procure pela seção "OBSERVAÇÕES" no final do PDF. Você DEVE transcrever todas as observações contidas lá na íntegra, linha por linha. Não omita NENHUMA observação. Se houver marcação de KM, inclua-a).
+- KM [X] | [Texto completo da observação]
+- [Texto de observação geral sem KM]
+
+> *OBSERVAÇÕES GERAIS (OBS)*
+(ATENÇÃO: Extraia e transcreva fielmente os textos contidos na seção "OBSERVAÇÕES" do documento. É OBRIGATÓRIO manter as referências de "Km" e as descrições técnicas exatas. Liste cada observação em tópicos, linha por linha):
+- KM [X] | [Texto da Observação detalhada, Ex: Bueiro celular múltiplo... / Fissura longitudinal...]
+- [Texto de observação geral sem KM, Ex: Verificou-se que diversas placas...]
 
 - *Conclusão:* [Parecer final]
 """
@@ -299,11 +313,15 @@ REGRAS RÍGIDAS DE ENGENHARIA E TABELAS:
 > *OAEs e Bueiros*
 - Pontes/Viadutos: **[X]** | Local: [Descrição]
 - Passagens Molhadas: **[X]**
-- Bueiros: **[X]** unidades | Obs: [Limpeza]
+- Total de Bueiros: **[X]**
+- Relação Detalhada de Bueiros:
+  (REGRA ABSOLUTA: É estritamente PROIBIDO resumir os bueiros. Você DEVE ler a tabela "BUEIROS" e listar TODOS eles, um por um, copiando a Localização, Tipo, Condição e Observação):
+  - KM [Localização] | Tipo: [Tipo] | Condição: [Condição] | Obs: [Observação]
 
 > *Meios-fios e Sarjetas (Existentes)*
 - Total Meios-fios: **[X] m** | Bom (**[X]m**) | Ruim (**[X]m**)
 - Total Sarjetas: **[X] m** | Bom (**[X]m**) | Ruim (**[X]m**)
+
 > *Meios-fios e Sarjetas (A Implantar)*
 - Total Meios-fios a Implantar: **[X] m**
 - Total Sarjetas a Implantar: **[X] m**
@@ -329,6 +347,14 @@ REGRAS RÍGIDAS DE ENGENHARIA E TABELAS:
 ---
 ### 4. SERVIÇOS GERAIS
 - *Roço Lateral:* **[X] ha**
+
+---
+### 5. OBSERVAÇÕES GERAIS (OBS)
+- *OBSERVAÇÕES:*
+- [Texto de observação geral sem KM]
+- KM [X] | [Texto completo da observação]
+(REGRA ABSOLUTA: Procure pela seção "OBSERVAÇÕES" no final do PDF. Você DEVE transcrever todas as observações contidas lá na íntegra, linha por linha. Não omita NENHUMA observação. Se houver marcação de KM, inclua-a).
+
 
 - *Conclusão:* [Parecer final técnico]
 """

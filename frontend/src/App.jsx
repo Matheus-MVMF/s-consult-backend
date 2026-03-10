@@ -274,22 +274,41 @@ export default function App() {
           )}
         </main>
 
-        {/* RODAPÉ DINÂMICO */}
-        <footer className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#0a0a0a] to-transparent">
-            <div className="max-w-3xl mx-auto">
+        {/* O "EMPURRÃOZINHO" DO TEXTO VEM AQUI! (Isso evita que o texto fique atrás da barra) */}
+        <div ref={messagesEndRef} className="h-40" />
+
+        {/* RODAPÉ DINÂMICO COM O EFEITO "NÉVOA" */}
+        <footer className="absolute bottom-0 left-0 w-full pt-32 pb-12 px-6 flex flex-col items-center pointer-events-none bg-gradient-to-t from-[#121212] via-[#121212]/95 to-transparent z-10">
+            {/* max-w-2xl deixa a caixa mais contida no centro da tela */}
+            <div className="w-full max-w-2xl pointer-events-auto">
                 {activeModule === 'nuvem' ? (
-                  <div className="relative shadow-2xl">
-                    <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCloudSearch()} disabled={isLoading} placeholder="Pesquisar trecho no banco de dados..." className="w-full px-6 py-5 pr-16 rounded-2xl border border-gray-700 bg-[#1a1a1a]/95 text-white outline-none focus:border-yellow-500 shadow-2xl" />
-                    <button onClick={() => handleCloudSearch()} disabled={!input.trim() || isLoading} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-xl bg-yellow-500 text-black hover:scale-105 disabled:opacity-50 disabled:hover:scale-100">
+                  <div className="relative shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-2xl">
+                    <input 
+                      value={input} 
+                      onChange={(e) => setInput(e.target.value)} 
+                      onKeyDown={(e) => e.key === 'Enter' && handleCloudSearch()} 
+                      disabled={isLoading} 
+                      placeholder="Pesquisar trecho no banco de dados..." 
+                      className="w-full px-6 py-5 pr-16 rounded-2xl border border-gray-700 bg-[#1f1f1f] text-white outline-none focus:border-yellow-500 shadow-2xl transition-all" 
+                    />
+                    <button 
+                      onClick={() => handleCloudSearch()} 
+                      disabled={!input.trim() || isLoading} 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-xl bg-yellow-500 text-black hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-transform"
+                    >
                       <Send className="w-5 h-5" />
                     </button>
                   </div>
                 ) : (
-                  <div className="shadow-2xl">
+                  <div className="shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-2xl bg-[#1f1f1f]">
                     <input type="file" accept=".pdf" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                    <button onClick={() => fileInputRef.current?.click()} disabled={isLoading} className="w-full p-6 border-2 border-dashed border-gray-600 hover:border-yellow-500 bg-[#1a1a1a]/95 rounded-2xl flex flex-col items-center justify-center gap-3 text-gray-400 hover:text-yellow-500 transition-all disabled:opacity-50 cursor-pointer">
+                    <button 
+                      onClick={() => fileInputRef.current?.click()} 
+                      disabled={isLoading} 
+                      className="w-full p-6 border-2 border-dashed border-gray-600 hover:border-yellow-500 rounded-2xl flex flex-col items-center justify-center gap-3 text-gray-400 hover:text-yellow-500 transition-all disabled:opacity-50 cursor-pointer"
+                    >
                         <UploadCloud className="w-8 h-8" />
-                        <span className="font-bold">Clique aqui para enviar o PDF de Inventário do seu computador</span>
+                        <span className="font-bold text-sm tracking-wide">Clique aqui para enviar o PDF de Inventário</span>
                     </button>
                   </div>
                 )}
