@@ -155,12 +155,12 @@ Siga o Template LVC rigorosamente com formatação Markdown. NUNCA use blocos de
 - Área Total: **[X] m²**
 - Locais Críticos: [Listar KMs]
 
-> *REMENDOS PROFUNDOS EXECUTADOS RECENTES** (RP)
+> *Remendos Profundos Executados Recentes* (RP)
 - Ocorrências: **[Total]**
 - Área Total: **[X] m²**
 - Locais Críticos: [Listar KMs]
 
-> *TAPA BURACOS EXECUTADOS RECENTES** (TP)
+> *Tapa Buracos Executados Recentes* (TP)
 - Ocorrências: **[Total]**
 - Área Total: **[X] m²**
 - Locais Críticos: [Listar KMs]
@@ -296,12 +296,12 @@ REGRAS RÍGIDAS DE ENGENHARIA E TABELAS:
 - Área Total: **[X] m²**
 - Locais Críticos: [Listar KMs]
 
-> *REMENDOS PROFUNDOS EXECUTADOS RECENTES** (RP)
+> *Remendos Profundos Executados Recentes* (RP)
 - Ocorrências: **[Total]**
 - Área Total: **[X] m²**
 - Locais Críticos: [Listar KMs]
 
-> *TAPA BURACOS EXECUTADOS RECENTES** (TP)
+> *Tapa Buracos Executados Recentes* (TP)
 - Ocorrências: **[Total]**
 - Área Total: **[X] m²**
 - Locais Críticos: [Listar KMs]
