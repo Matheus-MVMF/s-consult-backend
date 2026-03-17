@@ -155,6 +155,16 @@ Siga o Template LVC rigorosamente com formatação Markdown. NUNCA use blocos de
 - Área Total: **[X] m²**
 - Locais Críticos: [Listar KMs]
 
+> *REMENDOS PROFUNDOS EXECUTADOS RECENTES** (RP)
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Locais Críticos: [Listar KMs]
+
+> *TAPA BURACOS EXECUTADOS RECENTES** (TP)
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Locais Críticos: [Listar KMs]
+
 > *Rebaixamentos Laterais (RL)*
 - Ocorrências: **[Total]**
 - Área Total: **[X] m²**
@@ -235,7 +245,8 @@ Siga o Template LVC rigorosamente com formatação Markdown. NUNCA use blocos de
 
 - *Conclusão:* [Parecer final]
 """
-        resposta = model.generate_content(prompt_sistema)
+        # ✅ NOVIDADE: Timeout de 10 minutos (600s) na busca de nuvem
+        resposta = model.generate_content(prompt_sistema, request_options={"timeout": 600.0})
         return {"reply": resposta.text, "pdf_name": nome_arquivo_pdf}
     except Exception as e:
         return {"reply": f"Erro na IA: {str(e)}"}
@@ -281,6 +292,16 @@ REGRAS RÍGIDAS DE ENGENHARIA E TABELAS:
 ### 1. PISTA DE ROLAMENTO
 
 > *Panelas Abertas (PA)*
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Locais Críticos: [Listar KMs]
+
+> *REMENDOS PROFUNDOS EXECUTADOS RECENTES** (RP)
+- Ocorrências: **[Total]**
+- Área Total: **[X] m²**
+- Locais Críticos: [Listar KMs]
+
+> *TAPA BURACOS EXECUTADOS RECENTES** (TP)
 - Ocorrências: **[Total]**
 - Área Total: **[X] m²**
 - Locais Críticos: [Listar KMs]
@@ -359,7 +380,9 @@ REGRAS RÍGIDAS DE ENGENHARIA E TABELAS:
 - *Conclusão:* [Parecer final técnico]
 """
         model = genai.GenerativeModel("gemini-2.5-flash")
-        resposta = model.generate_content([prompt_sistema, arquivo_pdf])
+        
+        # ✅ NOVIDADE: Timeout de 10 minutos (600s) no upload de arquivo
+        resposta = model.generate_content([prompt_sistema, arquivo_pdf], request_options={"timeout": 600.0})
         
         try:
             arquivo_pdf.delete()
