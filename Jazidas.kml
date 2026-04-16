@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Jazidas - Floriano (Entr. PI-140 / Pov. Amolar)</name>
+    <description>Mapeamento de Jazidas do Trecho</description>
+    
+    <Placemark>
+      <name>Jazida Km 0,94</name>
+      <description>Projeto: SIM | Distância Fixa: 10m</description>
+      <Point>
+        <coordinates>-43.072911,-6.967505,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 4,04</name>
+      <description>Projeto: NÃO | Distância Fixa: 5m</description>
+      <Point>
+        <coordinates>-43.066764,-6.989949,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 5,87</name>
+      <description>Projeto: NÃO | Distância Fixa: 20m</description>
+      <Point>
+        <coordinates>-43.060484,-7.003133,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 10,05</name>
+      <description>Projeto: NÃO | Distância Fixa: 20m</description>
+      <Point>
+        <coordinates>-43.046227,-7.035533,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 13,68</name>
+      <description>Projeto: NÃO | Distância Fixa: 5m</description>
+      <Point>
+        <coordinates>-43.022429,-7.043448,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 14,03</name>
+      <description>Projeto: SIM | Distância Fixa: 20m</description>
+      <Point>
+        <coordinates>-43.017646,-7.044573,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 17,02</name>
+      <description>Projeto: NÃO | Distância Fixa: 15m</description>
+      <Point>
+        <coordinates>-43.009810,-7.063747,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 24,77</name>
+      <description>Projeto: NÃO | Distância Fixa: 20m</description>
+      <Point>
+        <coordinates>-42.956666,-7.082861,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 25,73</name>
+      <description>Projeto: NÃO | Distância Fixa: 10m</description>
+      <Point>
+        <coordinates>-42.955228,-7.100684,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 26,80</name>
+      <description>Projeto: NÃO | Distância Fixa: 10m</description>
+      <Point>
+        <coordinates>-42.951458,-7.103948,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 28,65</name>
+      <description>Projeto: NÃO | Distância Fixa: 30m</description>
+      <Point>
+        <coordinates>-42.939526,-7.118469,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Jazida Km 51,67</name>
+      <description>Projeto: SIM | Distância Fixa: 20m</description>
+      <Point>
+        <coordinates>-42.912438,-7.313611,0</coordinates>
+      </Point>
+    </Placemark>
+
+  </Document>
+</kml>
