@@ -12,7 +12,7 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const [activeModule, setActiveModule] = useState('nuvem'); // 'nuvem' ou 'inventario'
+  const [activeModule, setActiveModule] = useState('nuvem');
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -25,7 +25,7 @@ export default function App() {
 
   const hasStarted = messages.length > 0;
   
-  // ⚠️ ATENÇÃO AQUI: Se estiver rodando no seu PC, deixe 127.0.0.1. Se for subir pro Render, mude!
+  // ⚠️ Link do Backend
   const API_URL = "https://s-consult-backend.onrender.com";
 
   useEffect(() => {
@@ -59,7 +59,6 @@ export default function App() {
     setInput('');
   };
 
-  // --- SERVIÇO 1: BUSCAR NO FIREBASE ---
   const handleCloudSearch = async (text) => {
     const messageText = text || input;
     if (!messageText.trim()) return;
@@ -92,7 +91,6 @@ export default function App() {
     }
   };
 
-  // --- SERVIÇO 2: LER TABELAS (UPLOAD) ---
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -119,11 +117,21 @@ export default function App() {
     }
   };
 
+  // ✅ BOTÃO DO WHATSAPP CONSERTADO
   const copyToClipboard = (text, index) => {
-    const limpo = text.replace(/^### /gm, "\n").replace(/^> /gm, "\n\n").replace(/^- /gm, "•  ").replace(/---/g, "━━━━━━━━━━━━━━━").replace(/\*\*/g, "").replace(/\*/g, "");
-    navigator.clipboard.writeText(limpo);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
+    const cleanText = text
+      .replace(/###\s?/g, '')       
+      .replace(/>\s?/g, '')         
+      .replace(/\*\*/g, '')         
+      .replace(/\*/g, '')           
+      .replace(/---/g, '')          
+      .replace(/\n\s*\n\s*\n/g, '\n\n') 
+      .trim();
+
+    navigator.clipboard.writeText(cleanText).then(() => {
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000); // Tira o "Copiado!" depois de 2 segundos
+    });
   };
 
   if (!user) {
@@ -147,8 +155,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#121212] flex font-sans text-gray-100 selection:bg-yellow-500/30 overflow-hidden">
-      
-      {/* SIDEBAR SEPARADA EM MÓDULOS */}
       <aside className={`${sidebarOpen ? 'w-72' : 'w-0'} bg-[#0a0a0a] border-r border-gray-800 transition-all duration-300 overflow-hidden flex flex-col shrink-0 z-20`}>
         <div className="p-8 border-b border-gray-800 flex justify-center bg-black/20">
           <img src={logo} alt="S Consult" className="h-20 object-contain drop-shadow-2xl" />
@@ -157,17 +163,14 @@ export default function App() {
         <div className="flex-1 overflow-y-auto p-4">
           <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-4 tracking-widest pl-2">Módulos do Sistema</h3>
           <div className="space-y-3">
-            
             <button onClick={() => switchModule('nuvem')} className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all border text-left ${activeModule === 'nuvem' ? 'bg-[#1f1f1f] border-yellow-500 text-white' : 'border-transparent text-gray-400 hover:bg-[#1a1a1a]'}`}>
               <div className={`p-2 rounded-lg ${activeModule === 'nuvem' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-gray-800'}`}><Search className="w-5 h-5" /></div>
               <div><div className="text-sm font-bold">Consultar Nuvem</div><div className="text-[10px] text-gray-500">Buscar Relatórios Prontos</div></div>
             </button>
-
             <button onClick={() => switchModule('inventario')} className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all border text-left ${activeModule === 'inventario' ? 'bg-[#1f1f1f] border-yellow-500 text-white' : 'border-transparent text-gray-400 hover:bg-[#1a1a1a]'}`}>
               <div className={`p-2 rounded-lg ${activeModule === 'inventario' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-gray-800'}`}><UploadCloud className="w-5 h-5" /></div>
               <div><div className="text-sm font-bold">Processar Inventário</div><div className="text-[10px] text-gray-500">Ler Tabelas de PDF Local</div></div>
             </button>
-
           </div>
         </div>
 
@@ -178,7 +181,6 @@ export default function App() {
         </div>
       </aside>
 
-      {/* ÁREA PRINCIPAL */}
       <div className="flex-1 flex flex-col h-screen relative bg-[#121212]">
         <header className="h-16 flex items-center px-6 border-b border-gray-800/60 bg-[#0a0a0a] sticky top-0 z-10">
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 mr-4 bg-[#1f1f1f] rounded-lg text-white hover:bg-gray-700 border border-gray-700"><Menu className="w-5 h-5" /></button>
@@ -187,7 +189,6 @@ export default function App() {
             </span>
         </header>
 
-        {/* CHAT AREA */}
         <main className={`flex-1 overflow-y-auto px-4 md:px-10 transition-all duration-500 pb-32 pt-10`}>
           {!hasStarted ? (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
@@ -224,19 +225,26 @@ export default function App() {
                         {message.content.includes("❌") ? (
                             <span className="text-red-400 font-bold">{message.content}</span>
                         ) : (
-                            <ReactMarkdown components={{
-                                h3: ({node, ...props}) => <h3 className="text-xl font-bold text-yellow-400 mt-8 mb-4 border-b border-gray-700 pb-2 uppercase" {...props} />,
-                                blockquote: ({node, ...props}) => (
-                                    <div className="bg-[#252525] border-l-4 border-yellow-500 rounded-r-lg p-4 my-4 shadow-md">
-                                        <div className="italic text-gray-300" {...props} />
-                                    </div>
-                                ),
-                                ul: ({node, ...props}) => <ul className="space-y-2 my-2" {...props} />,
-                                li: ({node, ...props}) => <li className="text-gray-300 ml-4 list-disc marker:text-yellow-500" {...props} />,
-                                strong: ({node, ...props}) => <strong className="text-white font-bold" {...props} />
-                            }}>
-                                {message.content}
-                            </ReactMarkdown>
+                           <ReactMarkdown
+                            components={{
+                            h3: ({node, ...props}) => <h3 className="text-yellow-500 font-bold text-lg mt-6 mb-3 border-b border-gray-700 pb-2" {...props} />,
+                            h4: ({node, ...props}) => <h4 className="text-yellow-400 font-semibold mt-4 mb-2" {...props} />,
+                            strong: ({node, ...props}) => <strong className="text-yellow-200 font-bold" {...props} />,
+                            ul: ({node, ...props}) => <ul className="space-y-2 my-3 text-gray-300" {...props} />,
+                            li: ({node, ...props}) => (
+                              <li className="flex items-start gap-2">
+                                <span className="text-yellow-500 mt-1">•</span>
+                                <span {...props} />
+                              </li>
+                            ),
+                            blockquote: ({node, ...props}) => (
+                              <blockquote className="bg-[#2a2a2a] border-l-4 border-yellow-500 p-4 rounded-r-lg my-4 text-gray-200 shadow-md" {...props} />
+                            ),
+                            hr: ({node, ...props}) => <hr className="my-6 border-gray-700" {...props} />
+                          }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
                         )}
                     </div>
 
@@ -274,12 +282,9 @@ export default function App() {
           )}
         </main>
 
-        {/* O "EMPURRÃOZINHO" DO TEXTO VEM AQUI! (Isso evita que o texto fique atrás da barra) */}
         <div ref={messagesEndRef} className="h-40" />
 
-        {/* RODAPÉ DINÂMICO COM O EFEITO "NÉVOA" */}
         <footer className="absolute bottom-0 left-0 w-full pt-32 pb-12 px-6 flex flex-col items-center pointer-events-none bg-gradient-to-t from-[#121212] via-[#121212]/95 to-transparent z-10">
-            {/* max-w-2xl deixa a caixa mais contida no centro da tela */}
             <div className="w-full max-w-2xl pointer-events-auto">
                 {activeModule === 'nuvem' ? (
                   <div className="relative shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-2xl">
