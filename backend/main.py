@@ -1,14 +1,8 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile
-from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import os
-import json
-import pdfplumber
 import google.generativeai as genai
 from dotenv import load_dotenv
-import firebase_admin
-from firebase_admin import credentials, storage
 import tempfile
 
 load_dotenv()
@@ -22,77 +16,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configuração do Gemini
 api_key = os.environ.get("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
 
-if not firebase_admin._apps:
-    try:
-        firebase_json = os.environ.get('FIREBASE_CONFIG')
-        if firebase_json:
-            cred_dict = json.loads(firebase_json)
-            cred = credentials.Certificate(cred_dict)
-            firebase_admin.initialize_app(cred, {
-                'storageBucket': os.environ.get('FIREBASE_BUCKET', 'teste-6f9b9.firebasestorage.app')
-            })
-    except Exception as e:
-        print(f"Erro Firebase: {e}")
-
-try:
-    bucket = storage.bucket()
-except:
-    bucket = None
-
-class ChatRequest(BaseModel):
-    message: str 
-
-def listar_pdfs_firebase(termo):
-    if not bucket: return []
-    blobs = bucket.list_blobs()
-    matches = []
-    termo = termo.lower().strip()
-    for blob in blobs:
-        if blob.name.lower().endswith(".pdf") and termo in blob.name.lower():
-            matches.append(blob.name)
-    return list(set(matches))
-
-def ler_pdf_firebase(nome_arquivo):
-    if not bucket: return None
-    try:
-        blob = bucket.blob(nome_arquivo)
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
-            blob.download_to_filename(temp_pdf.name)
-            temp_path = temp_pdf.name
-        texto = ""
-        with pdfplumber.open(temp_path) as pdf:
-            for page in pdf.pages:
-                texto += page.extract_text() or ""
-        os.remove(temp_path)
-        return texto
-    except Exception as e:
-        return None
-
-# PROMPT COM REGRAS INQUEBRÁVEIS E EXCEÇÃO DO ROÇO
-def get_prompt(nome_trecho, texto_extraido):
+# =====================================================================
+# PROMPT 1: INVENTÁRIO ANTIGO (MANTIDO INTACTO)
+# =====================================================================
+def get_prompt_inventario(nome_arquivo):
     return f"""
-Aja como um Engenheiro Rodoviário Sênior. Analise o Inventário: {nome_trecho}.
-DADOS: {texto_extraido[:80000]}
+Aja como um Engenheiro Rodoviário Sênior. Analise o arquivo de inventário em anexo ({nome_arquivo}).
 
 REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
-1. SE NÃO EXISTIR NO PDF, APAGUE O TÓPICO: Se não houver Panelas, Rebaixamentos, Erosões, Desgaste ou Áreas para Restauração no inventário, VOCÊ É PROIBIDO DE ESCREVER O NOME DESSES DEFEITOS. Apenas liste os que existem, e exclua os blocos vazios.
-2. MENSAGEM DE BOM ESTADO: APENAS SE a "Pista de Rolamento" não tiver NENHUM defeito (zero Panelas, zero Erosões, etc.), escreva a frase: "Não foram identificados defeitos na rodovia devido o trecho estar em bom estado de conservação."
-3. A IMPLANTAR (SINALIZAÇÃO E DRENAGEM): Se não houver uma tabela EXPLICANDO O QUE IMPLANTAR (Placas, Meio-fio, Sarjeta), VOCÊ É PROIBIDO de colocar o tópico "A Implantar". APAGUE O TÓPICO INTEIRO.
-4. ROÇO LATERAL (SEMPRE OBRIGATÓRIO): O tópico "4. SERVIÇOS GERAIS" NUNCA pode ser apagado. Se houver área para roço, informe o valor. Se for 0 ou não houver, escreva EXATAMENTE: "Não há necessidade de executar roço no levantamento atual."
-5. UNIDADES OBRIGATÓRIAS (EXTREMA IMPORTÂNCIA):
-   - Restauração: Extensão (m)
-   - Erosões: Volume (m³)
-   - Rebaixamentos, Panelas, Desgaste, Remendos (RP) e Tapa Buracos (TP): Área (m²)
-6. DETALHAMENTO CIRÚRGICO: Você DEVE listar as medidas linha por linha. Exemplo obrigatório para cada defeito: "- KM X | Lado LD | Medida: X m²". NUNCA omita a medida individual. ATENÇÃO EXCLUSIVA: Para o defeito "Áreas para Restauração", o campo Lado deve ser SEMPRE preenchido obrigatoriamente como "Ambos os Lados" (nunca use "Não Especificado").
+1. SE NÃO EXISTIR NO PDF, APAGUE O TÓPICO. Apenas liste os que existem, e exclua os blocos vazios.
+2. MENSAGEM DE BOM ESTADO: APENAS SE a "Pista de Rolamento" não tiver NENHUM defeito.
+3. A IMPLANTAR (SINALIZAÇÃO E DRENAGEM): Se não houver uma tabela EXPLICANDO O QUE IMPLANTAR, APAGUE O TÓPICO INTEIRO.
+4. ROÇO LATERAL (SEMPRE OBRIGATÓRIO): Se houver área para roço, informe o valor. Se for 0, escreva: "Não há necessidade de executar roço no levantamento atual."
+5. UNIDADES OBRIGATÓRIAS: Restauração (m); Erosões (m³); Panelas, Desgaste, Rebaixamentos (m²).
+6. DETALHAMENTO CIRÚRGICO: Você DEVE listar as medidas linha por linha. Exemplo obrigatório para cada defeito: "- KM X | Lado LD | Medida: X m²".
 7. FORMATO OBRIGATÓRIO: Use '###' para títulos, '>' para blocos amarelos e '•' para listas.
 
 --- TEMPLATE ESTRITO ---
 ### 📍 RESUMO TÉCNICO LVC
-+ 🛣️ *Trecho:* {nome_trecho}
++ 🛣️ *Trecho:* Extraia do PDF
 
 • Extensão: **[X] km**
 • Revestimento (Pista): **[Tipo e KMs]**
@@ -104,12 +51,10 @@ REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
 
 ---
 ### 1. PISTA DE ROLAMENTO
-[SE ZERO DEFEITOS, USE A FRASE DA REGRA 2. SE HOUVER, LISTE APENAS OS QUE EXISTEM COM O SEGUINTE MODELO E APAGUE OS VAZIOS:]
-
 > *[Nome do Defeito Existente]*
-- Ocorrências: **[X]** | Total: **[X] [Unidade correta]**
+- Ocorrências: **[X]** | Total: **[X] [Unidade]**
 - Relação Detalhada:
-  - KM [X] | Lado [LE/LD/Eixo] | Medida: [X] [Unidade correta]
+  - KM [X] | Lado [LE/LD/Eixo] | Medida: [X] [Unidade]
 
 ---
 ### 2. DRENAGEM E OAEs
@@ -123,7 +68,91 @@ REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
 • Total Meios-fios: [X] m | Bom ([X]m) | Ruim ([X]m)
 • Total Sarjetas: [X] m | Bom ([X]m) | Ruim ([X]m)
 
-[SE HOUVER IMPLANTAÇÃO EXATA, ESCREVA O BLOCO DE IMPLANTAÇÃO AQUI. SE NÃO HOUVER, APAGUE]
+---
+### 3. SINALIZAÇÃO
+> *Horizontal (Pintura)*
+• Situação: [Desc]
+
+> *Vertical (Placas Existentes)*
+• Situação: [Desc técnica geral]
+
+[SE HOUVER PLACAS A IMPLANTAR NA TABELA, ESCREVA O BLOCO "A Implantar (Placas)" AQUI. SE NÃO, APAGUE]
+
+---
+### 4. SERVIÇOS GERAIS
+- *Roço Lateral:* [Descreva a necessidade de roço]
+
+---
+### 5. OBSERVAÇÕES GERAIS (OBS)
+• OBSERVAÇÕES:
+[Transcreva as observações]
+
+---
+• Conclusão: [Parecer final]
+"""
+
+# =====================================================================
+# PROMPT 2: NOVO RELATÓRIO (COM REGRAS DE INTERVALO DE KMS)
+# =====================================================================
+def get_prompt_relatorio(nome_arquivo):
+    return f"""
+Aja como um Engenheiro Rodoviário Sênior. Analise o NOVO RELATÓRIO INDIVIDUAL em anexo ({nome_arquivo}).
+Busque nas tabelas deste relatório todo o conteúdo necessário e extraia as informações seguindo exatamente as mesmas regras e o mesmo TEMPLATE ESTRITO abaixo.
+
+REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
+1. SE NÃO EXISTIR NO PDF, APAGUE O TÓPICO: Apenas liste os defeitos que existem (Panelas, Rebaixamentos, etc.), e exclua os blocos vazios.
+2. MENSAGEM DE BOM ESTADO: APENAS SE a "Pista de Rolamento" não tiver NENHUM defeito.
+3. A IMPLANTAR (SINALIZAÇÃO E DRENAGEM): Se não houver uma tabela EXPLICANDO O QUE IMPLANTAR, APAGUE O TÓPICO INTEIRO.
+4. ROÇO LATERAL: NUNCA pode ser apagado.
+5. UNIDADES OBRIGATÓRIAS: Restauração (m); Erosões (m³); Panelas, Rebaixamentos, Desgaste (m²).
+
+6. REGRA CRÍTICA DE LADOS E INTERVALOS DE KM (LEIA ATENTAMENTE):
+   - PANELAS: Extraia SEMPRE o KM Inicial e o KM Final, mesmo se forem iguais (Ex: KM 6.2 a 6.7 OU KM 5.98 a 5.98). NÃO INVENTE LADO! Coloque apenas KM e a Medida. NUNCA recuse o detalhamento.
+   - DESGASTES: Extraia SEMPRE o KM Inicial e o KM Final, mesmo se forem iguais. Extraia o Lado conforme a tabela.
+   - ÁREAS PARA RESTAURAÇÃO: Extraia SEMPRE o KM Inicial e o KM Final. O Lado DEVE ser SEMPRE escrito como "Ambos os Lados".
+   - REBAIXAMENTOS E EROSÕES: Extraia apenas um KM. Extraia o lado EXATAMENTE como está na tabela (Ex: LE, LD). SE A PALAVRA "EIXO" NÃO ESTIVER ESCRITA NA TABELA, VOCÊ É PROIBIDO DE USÁ-LA.
+
+7. REGRA DE PÓRTICOS E OBSERVAÇÕES:
+   - PÓRTICOS: Devem ficar APENAS no topo do resumo. Busque na tabela de OBSERVAÇÕES. Extraia o KM e a descrição exata da tabela (Ex: "- KM X | Pórtico Novo"). NUNCA use "Situação: Existente".
+   - OBSERVAÇÕES GERAIS (Tópico 5): Coloque AQUI APENAS as informações descritivas de texto que sobraram na tabela de OBSERVAÇÕES do relatório. NÃO coloque os pórticos aqui novamente.
+
+--- TEMPLATE ESTRITO ---
+### 📍 RESUMO TÉCNICO LVC
++ 🛣️ *Trecho:* Extraia do PDF
+
+• Extensão: **[X] km**
+• Revestimento (Pista): **[Tipo e KMs]**
+• Acostamento: **[Descrição]**
+
+[SE EXISTIR PÓRTICO, ESCREVA AQUI CONFORME A REGRA 7. SE NÃO, APAGUE]
+> 🏗️ *Pórticos:*
+- KM [X] | [Descrição exata da tabela]
+
+---
+### 1. PISTA DE ROLAMENTO
+[SE ZERO DEFEITOS, USE A MENSAGEM DA REGRA 2. SE HOUVER, LISTE APENAS OS EXISTENTES]
+
+> *[Nome do Defeito Existente]*
+- Ocorrências: **[X]** | Total: **[X] [Unidade correta]**
+- Relação Detalhada:
+  - [Para Panelas: KM [Inicial] a [Final] | Medida: [X] m²]
+  - [Para Restauração: KM [Inicial] a [Final] | Lado Ambos os Lados | Medida: [X] m]
+  - [Para Desgastes: KM [Inicial] a [Final] | Lado [Extraído] | Medida: [X] m²]
+  - [Para Rebaixamentos/Erosões: KM [X] | Lado [Extraído] | Medida: [X] [Unidade]]
+
+---
+### 2. DRENAGEM E OAEs
+> *OAEs e Bueiros*
+• Pontes/Viadutos: [Qtd] | Local: [Desc]
+• Passagens Molhadas: [Qtd]
+• Total de Bueiros: [X]
+• Relação de Bueiros: [KM | Tipo | Condição | Obs]
+
+> *Meios-fios e Sarjetas (Existentes)*
+• Total Meios-fios: [X] m | Bom ([X]m) | Ruim ([X]m)
+• Total Sarjetas: [X] m | Bom ([X]m) | Ruim ([X]m)
+
+[SE HOUVER IMPLANTAÇÃO EXATA, ESCREVA O BLOCO AQUI. SE NÃO, APAGUE]
 
 ---
 ### 3. SINALIZAÇÃO
@@ -134,16 +163,16 @@ REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
 • Situação: [Desc técnica geral]
 [Se houver tabela, liste a relação completa aqui]
 
-[SE HOUVER PLACAS A IMPLANTAR NA TABELA, ESCREVA O BLOCO "A Implantar (Placas)" AQUI. SE NÃO HOUVER, APAGUE ABSOLUTAMENTE O BLOCO]
+[SE HOUVER PLACAS A IMPLANTAR NA TABELA, ESCREVA O BLOCO "A Implantar (Placas)" AQUI. SE NÃO, APAGUE]
 
 ---
 ### 4. SERVIÇOS GERAIS
-- *Roço Lateral:* [Se houver valor, coloque "Há necessidade de roço em **X ha** LD / LE". Se for 0 ou não houver, escreva EXATAMENTE "Não há necessidade de executar roço no levantamento atual."]
+- *Roço Lateral:* [Se houver valor, coloque "Há necessidade de roço em **X ha** LD / LE". Se for 0 ou não houver, escreva "Não há necessidade de executar roço no levantamento atual."]
 
 ---
 ### 5. OBSERVAÇÕES GERAIS (OBS)
 • OBSERVAÇÕES:
-[Transcreva as observações]
+[Transcreva apenas o conteúdo de texto da tabela de observações, excluindo os pórticos]
 
 ---
 [SE HOUVER SERVIÇOS EXECUTADOS (RP OU TP), CRIE AQUI O TÓPICO "### 6. SERVIÇOS EXECUTADOS RECENTES" LISTANDO ÁREA E RELAÇÃO. SE NÃO, APAGUE O TÓPICO]
@@ -152,23 +181,40 @@ REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
 • Conclusão: [Parecer final]
 """
 
-@app.post("/chat")
-async def chat_endpoint(request: ChatRequest):
-    termo = request.message.strip()
-    lista_arquivos = listar_pdfs_firebase(termo)
-    if not lista_arquivos: return {"reply": "Não encontrado."}
-    nome = lista_arquivos[0]
-    texto = ler_pdf_firebase(nome)
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    resposta = model.generate_content(get_prompt(nome, texto), request_options={"timeout": 600.0})
-    return {"reply": resposta.text, "pdf_name": nome}
-
-@app.post("/upload-pdf")
-async def upload_pdf_endpoint(file: UploadFile = File(...)):
+# =====================================================================
+# ENDPOINT 1: UPLOAD DO INVENTÁRIO (TABELAS EXCEL)
+# =====================================================================
+@app.post("/upload-inventario")
+async def upload_inventario_endpoint(file: UploadFile = File(...)):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
         temp_pdf.write(await file.read())
         temp_path = temp_pdf.name
-    arquivo_pdf = genai.upload_file(temp_path)
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    resposta = model.generate_content([get_prompt(file.filename, ""), arquivo_pdf], request_options={"timeout": 600.0})
-    return {"reply": resposta.text, "pdf_name": file.filename}
+    
+    try:
+        arquivo_pdf = genai.upload_file(temp_path)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        resposta = model.generate_content([get_prompt_inventario(file.filename), arquivo_pdf], request_options={"timeout": 600.0})
+        return {"reply": resposta.text, "pdf_name": file.filename}
+    except Exception as e:
+        return {"reply": f"❌ Erro: {str(e)}"}
+    finally:
+        if os.path.exists(temp_path): os.remove(temp_path)
+
+# =====================================================================
+# ENDPOINT 2: UPLOAD DO NOVO RELATÓRIO
+# =====================================================================
+@app.post("/upload-relatorio")
+async def upload_relatorio_endpoint(file: UploadFile = File(...)):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+        temp_pdf.write(await file.read())
+        temp_path = temp_pdf.name
+    
+    try:
+        arquivo_pdf = genai.upload_file(temp_path)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        resposta = model.generate_content([get_prompt_relatorio(file.filename), arquivo_pdf], request_options={"timeout": 600.0})
+        return {"reply": resposta.text, "pdf_name": file.filename}
+    except Exception as e:
+        return {"reply": f"❌ Erro: {str(e)}"}
+    finally:
+        if os.path.exists(temp_path): os.remove(temp_path)
