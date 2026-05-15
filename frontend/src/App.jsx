@@ -25,7 +25,7 @@ export default function App() {
   const hasStarted = messages.length > 0;
   
   // ⚠️ Link do Backend
-  const API_URL = "https://s-consult-backend.onrender.com";
+  const API_URL = import.meta.env.VITE_API_URL || "https://s-consult-backend.onrender.com";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

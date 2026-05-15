@@ -34,27 +34,38 @@ REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
 3. A IMPLANTAR (SINALIZAÇÃO E DRENAGEM): Se não houver uma tabela EXPLICANDO O QUE IMPLANTAR, APAGUE O TÓPICO INTEIRO.
 4. ROÇO LATERAL (SEMPRE OBRIGATÓRIO): Se houver área para roço, informe o valor. Se for 0, escreva: "Não há necessidade de executar roço no levantamento atual."
 5. UNIDADES OBRIGATÓRIAS: Restauração (m); Erosões (m³); Panelas, Desgaste, Rebaixamentos (m²).
-6. DETALHAMENTO CIRÚRGICO: Você DEVE listar as medidas linha por linha. Exemplo obrigatório para cada defeito: "- KM X | Lado LD | Medida: X m²".
-7. FORMATO OBRIGATÓRIO: Use '###' para títulos, '>' para blocos amarelos e '•' para listas.
+6. REGRA CRÍTICA DE LADOS E INTERVALOS DE KM (LEIA ATENTAMENTE):
+   - PANELAS: OBRIGATÓRIO — Busque a tabela de panelas no arquivo (pode estar na aba DEFEITOS). Extraia TODOS os registros com KM Inicial e KM Final. NÃO INVENTE LADO. Use o valor da coluna QTDE diretamente como a medida em m² (ex: QTDE = 1 → "Medida: 1,00 m²"). NUNCA escreva "Qtde". Formato obrigatório: "KM [Ini] a [Fin] | Medida: [X] m²". NUNCA omita a tabela de panelas. NUNCA recuse o detalhamento.
+   - DESGASTES: Extraia SEMPRE o KM Inicial e o KM Final. Extraia o Lado conforme a tabela.
+   - ÁREAS PARA RESTAURAÇÃO: Extraia SEMPRE o KM Inicial e o KM Final. O Lado DEVE ser SEMPRE escrito como "Ambos os Lados".
+   - REBAIXAMENTOS E EROSÕES: Extraia apenas um KM. Extraia o lado EXATAMENTE como está na tabela (Ex: LE, LD). SE A PALAVRA "EIXO" NÃO ESTIVER ESCRITA NA TABELA, VOCÊ É PROIBIDO DE USÁ-LA.
+7. REGRA DE REVESTIMENTO: Para cada tipo de revestimento (pista e acostamento), calcule e informe a extensão total em km de cada tipo separadamente. Se houver dois tipos diferentes, liste cada um com sua extensão.
+8. REGRA DE MEIOS-FIOS E SARJETAS: Liste TODOS os segmentos individualmente. Coloque o LADO (LE ou LD) no início de cada linha de segmento. Separe Meios-fios de Sarjetas em blocos distintos. Se houver seção "A Executar/Implantar", crie bloco separado com o mesmo formato.
+9. FORMATO OBRIGATÓRIO: Use '###' para títulos, '>' para blocos amarelos e '•' para listas.
 
 --- TEMPLATE ESTRITO ---
 ### 📍 RESUMO TÉCNICO LVC
 + 🛣️ *Trecho:* Extraia do PDF
 
 • Extensão: **[X] km**
-• Revestimento (Pista): **[Tipo e KMs]**
-• Acostamento: **[Descrição]**
+• Revestimento (Pista): **[Tipo1]: [X,X km]** | **[Tipo2]: [X,X km]** (se houver apenas um tipo, liste só ele)
+• Acostamento: **[Tipo]: [X,X km]** (ou "Sem Acostamento" se não houver)
 
 [SE EXISTIR PÓRTICO, ESCREVA AQUI. SE NÃO, APAGUE]
 > 🏗️ *Pórticos:*
-- [Situação]
+- KM [X] | [Descrição exata da tabela]
 
 ---
 ### 1. PISTA DE ROLAMENTO
+[SE ZERO DEFEITOS, USE A MENSAGEM DA REGRA 2. SE HOUVER, LISTE APENAS OS EXISTENTES]
+
 > *[Nome do Defeito Existente]*
-- Ocorrências: **[X]** | Total: **[X] [Unidade]**
+- Ocorrências: **[X]** | Total: **[X] [Unidade correta]**
 - Relação Detalhada:
-  - KM [X] | Lado [LE/LD/Eixo] | Medida: [X] [Unidade]
+  - [Para Panelas: KM [Inicial] a [Final] | Medida: [X] m²]
+  - [Para Restauração: KM [Inicial] a [Final] | Lado Ambos os Lados | Medida: [X] m]
+  - [Para Desgastes: KM [Inicial] a [Final] | Lado [Extraído] | Medida: [X] m²]
+  - [Para Rebaixamentos/Erosões: KM [X] | Lado [Extraído] | Medida: [X] [Unidade]]
 
 ---
 ### 2. DRENAGEM E OAEs
@@ -64,9 +75,34 @@ REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
 • Total de Bueiros: [X]
 • Relação de Bueiros: [KM | Tipo | Condição | Obs]
 
-> *Meios-fios e Sarjetas (Existentes)*
-• Total Meios-fios: [X] m | Bom ([X]m) | Ruim ([X]m)
-• Total Sarjetas: [X] m | Bom ([X]m) | Ruim ([X]m)
+> *Meios-fios (Existentes)*
+[LISTA TODOS OS SEGMENTOS LE PRIMEIRO, DEPOIS TODOS OS SEGMENTOS LD, UM POR LINHA:]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+• Total: **[X] m** | LE: [X] m ([Condição]) | LD: [X] m ([Condição])
+
+[SE HOUVER SARJETAS EXISTENTES, CRIE O BLOCO ABAIXO. SE NÃO, APAGUE]
+> *Sarjetas (Existentes)*
+[LISTA TODOS OS SEGMENTOS LE PRIMEIRO, DEPOIS TODOS OS SEGMENTOS LD:]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+• Total: **[X] m** | LE: [X] m ([Condição]) | LD: [X] m ([Condição])
+
+[SE HOUVER MEIOS-FIOS A EXECUTAR/IMPLANTAR, CRIE O BLOCO ABAIXO. SE NÃO, APAGUE]
+> *Meios-fios (A Executar)*
+[LISTA TODOS OS SEGMENTOS LE PRIMEIRO, DEPOIS TODOS OS SEGMENTOS LD:]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+• Total: **[X] m** | LE: [X] m | LD: [X] m
+
+[SE HOUVER SARJETAS A EXECUTAR/IMPLANTAR, CRIE O BLOCO ABAIXO. SE NÃO, APAGUE]
+> *Sarjetas (A Executar)*
+[LISTA TODOS OS SEGMENTOS LE PRIMEIRO, DEPOIS TODOS OS SEGMENTOS LD:]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+• Total: **[X] m** | LE: [X] m | LD: [X] m
 
 ---
 ### 3. SINALIZAÇÃO
@@ -107,7 +143,7 @@ REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
 5. UNIDADES OBRIGATÓRIAS: Restauração (m); Erosões (m³); Panelas, Rebaixamentos, Desgaste (m²).
 
 6. REGRA CRÍTICA DE LADOS E INTERVALOS DE KM (LEIA ATENTAMENTE):
-   - PANELAS: Extraia SEMPRE o KM Inicial e o KM Final, mesmo se forem iguais (Ex: KM 6.2 a 6.7 OU KM 5.98 a 5.98). NÃO INVENTE LADO! Coloque apenas KM e a Medida. NUNCA recuse o detalhamento.
+   - PANELAS: OBRIGATÓRIO — Busque a tabela de panelas no arquivo. Extraia TODOS os registros com KM Inicial e KM Final, mesmo se forem iguais. NÃO INVENTE LADO. Para a medida: se a tabela tiver área em m², use ela. Se a tabela tiver apenas QTDE (quantidade), use o valor da QTDE e escreva como "Medida: [X] m²". NUNCA omita a tabela de panelas inteira. NUNCA recuse o detalhamento.
    - DESGASTES: Extraia SEMPRE o KM Inicial e o KM Final, mesmo se forem iguais. Extraia o Lado conforme a tabela.
    - ÁREAS PARA RESTAURAÇÃO: Extraia SEMPRE o KM Inicial e o KM Final. O Lado DEVE ser SEMPRE escrito como "Ambos os Lados".
    - REBAIXAMENTOS E EROSÕES: Extraia apenas um KM. Extraia o lado EXATAMENTE como está na tabela (Ex: LE, LD). SE A PALAVRA "EIXO" NÃO ESTIVER ESCRITA NA TABELA, VOCÊ É PROIBIDO DE USÁ-LA.
@@ -116,13 +152,17 @@ REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
    - PÓRTICOS: Devem ficar APENAS no topo do resumo. Busque na tabela de OBSERVAÇÕES. Extraia o KM e a descrição exata da tabela (Ex: "- KM X | Pórtico Novo"). NUNCA use "Situação: Existente".
    - OBSERVAÇÕES GERAIS (Tópico 5): Coloque AQUI APENAS as informações descritivas de texto que sobraram na tabela de OBSERVAÇÕES do relatório. NÃO coloque os pórticos aqui novamente.
 
+8. REGRA DE REVESTIMENTO: Para cada tipo de revestimento (pista e acostamento), calcule e informe a extensão total em km de cada tipo separadamente. Se houver dois tipos diferentes, liste cada um com sua extensão.
+
+9. REGRA DE MEIOS-FIOS E SARJETAS: Liste TODOS os segmentos individualmente. Coloque o LADO (LE ou LD) no início de cada linha de segmento. Separe Meios-fios de Sarjetas em blocos distintos. Se houver seção "A Executar/Implantar", crie bloco separado com o mesmo formato.
+
 --- TEMPLATE ESTRITO ---
 ### 📍 RESUMO TÉCNICO LVC
 + 🛣️ *Trecho:* Extraia do PDF
 
 • Extensão: **[X] km**
-• Revestimento (Pista): **[Tipo e KMs]**
-• Acostamento: **[Descrição]**
+• Revestimento (Pista): **[Tipo1]: [X,X km]** | **[Tipo2]: [X,X km]** (se houver apenas um tipo, liste só ele)
+• Acostamento: **[Tipo]: [X,X km]** (ou "Sem Acostamento" se não houver)
 
 [SE EXISTIR PÓRTICO, ESCREVA AQUI CONFORME A REGRA 7. SE NÃO, APAGUE]
 > 🏗️ *Pórticos:*
@@ -148,11 +188,34 @@ REGRAS ABSOLUTAS E INQUEBRÁVEIS DE ENGENHARIA (NÃO DESOBEDEÇA NENHUMA):
 • Total de Bueiros: [X]
 • Relação de Bueiros: [KM | Tipo | Condição | Obs]
 
-> *Meios-fios e Sarjetas (Existentes)*
-• Total Meios-fios: [X] m | Bom ([X]m) | Ruim ([X]m)
-• Total Sarjetas: [X] m | Bom ([X]m) | Ruim ([X]m)
+> *Meios-fios (Existentes)*
+[LISTA TODOS OS SEGMENTOS LE PRIMEIRO, DEPOIS TODOS OS SEGMENTOS LD, UM POR LINHA:]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+• Total: **[X] m** | LE: [X] m ([Condição]) | LD: [X] m ([Condição])
 
-[SE HOUVER IMPLANTAÇÃO EXATA, ESCREVA O BLOCO AQUI. SE NÃO, APAGUE]
+[SE HOUVER SARJETAS EXISTENTES, CRIE O BLOCO ABAIXO. SE NÃO, APAGUE]
+> *Sarjetas (Existentes)*
+[LISTA TODOS OS SEGMENTOS LE PRIMEIRO, DEPOIS TODOS OS SEGMENTOS LD:]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+• Total: **[X] m** | LE: [X] m ([Condição]) | LD: [X] m ([Condição])
+
+[SE HOUVER MEIOS-FIOS A EXECUTAR/IMPLANTAR, CRIE O BLOCO ABAIXO. SE NÃO, APAGUE]
+> *Meios-fios (A Executar)*
+[LISTA TODOS OS SEGMENTOS LE PRIMEIRO, DEPOIS TODOS OS SEGMENTOS LD:]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+• Total: **[X] m** | LE: [X] m | LD: [X] m
+
+[SE HOUVER SARJETAS A EXECUTAR/IMPLANTAR, CRIE O BLOCO ABAIXO. SE NÃO, APAGUE]
+> *Sarjetas (A Executar)*
+[LISTA TODOS OS SEGMENTOS LE PRIMEIRO, DEPOIS TODOS OS SEGMENTOS LD:]
+- LE | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+- LD | [KM Ini] - [KM Fin] | [Ext] m | [Condição]
+• Total: **[X] m** | LE: [X] m | LD: [X] m
 
 ---
 ### 3. SINALIZAÇÃO
